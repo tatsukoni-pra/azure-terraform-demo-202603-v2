@@ -11,10 +11,10 @@
   - データベース: `TestDatabase` (AutoScaling: 100-1000 RU/s)
     - コンテナ: `TestContainerApp` (パーティションキー: `/id`)
     - コンテナ: `TestContainerFront` (パーティションキー: `/userId`)
-- Cosmos DBアカウント: `tatsukoni-feat-dev`
-  - データベース: `FeatDatabase` (AutoScaling: 100-1000 RU/s)
-    - コンテナ: `FeatContainerApp` (パーティションキー: `/id`)
-    - コンテナ: `FeatContainerFront` (パーティションキー: `/userId`)
+- Cosmos DBアカウント: `tatsukoni-test-dev-v2`
+  - データベース: `TestDatabase` (AutoScaling: 100-1000 RU/s)
+    - コンテナ: `TestContainerApp` (パーティションキー: `/id`)
+    - コンテナ: `TestContainerFront` (パーティションキー: `/userId`)
 
 **prd環境:**
 
@@ -25,15 +25,15 @@
   - データベース: `TestDatabase` (AutoScaling: 100-1000 RU/s)
     - コンテナ: `TestContainerApp` (パーティションキー: `/id`)
     - コンテナ: `TestContainerFront` (パーティションキー: `/userId`)
-- Cosmos DBアカウント: `tatsukoni-feat-prd`
-  - データベース: `FeatDatabase` (AutoScaling: 100-1000 RU/s)
-    - コンテナ: `FeatContainerApp` (パーティションキー: `/id`)
-    - コンテナ: `FeatContainerFront` (パーティションキー: `/userId`)
+- Cosmos DBアカウント: `tatsukoni-test-prd-v2`
+  - データベース: `TestDatabase` (AutoScaling: 100-1000 RU/s)
+    - コンテナ: `TestContainerApp` (パーティションキー: `/id`)
+    - コンテナ: `TestContainerFront` (パーティションキー: `/userId`)
 
 ### ディレクトリ構造
 
 ```
-azure-terraform-demo-202603/
+azure-terraform-demo-202603-v2/
 ├── main.tf                    # ルートモジュール
 ├── variables.tf               # 環境変数定義
 ├── locals.tf                  # ローカル変数
@@ -47,18 +47,15 @@ azure-terraform-demo-202603/
 │   ├── main.tf               # cosmosdb moduleの呼び出し
 │   ├── variables.tf          # cosmosdb module変数
 │   ├── data_sources.tf       # リソースグループ参照
-│   ├── test/
-│   │   ├── cosmosdb_account.tf    # CosmosDBアカウント定義
-│   │   ├── sql_database.tf        # データベース定義
-│   │   ├── sql_container.tf       # コンテナ定義
-│   │   ├── locals.tf              # ローカル変数
-│   │   └── variables.tf           # test module変数
-│   └── feat/
-│       ├── cosmosdb_account.tf    # CosmosDBアカウント定義
-│       ├── sql_database.tf        # データベース定義
-│       ├── sql_container.tf       # コンテナ定義
-│       ├── locals.tf              # ローカル変数
-│       └── variables.tf           # feat module変数
+│   └── test/
+│       ├── cosmosdb_account.tf       # CosmosDBアカウント定義
+│       ├── cosmosdb_account_v2.tf    # CosmosDBアカウント定義 (v2)
+│       ├── sql_database.tf           # データベース定義
+│       ├── sql_database_v2.tf        # データベース定義 (v2)
+│       ├── sql_container.tf          # コンテナ定義
+│       ├── sql_container_v2.tf       # コンテナ定義 (v2)
+│       ├── locals.tf                 # ローカル変数
+│       └── variables.tf              # test module変数
 └── vnet/
     ├── main.tf               # VNet定義
     ├── variables.tf          # vnet module変数
@@ -71,7 +68,7 @@ azure-terraform-demo-202603/
 ### 初期構築（dev環境）
 
 ```bash
-cd /Users/konishitatsuhiro/Desktop/git/azure-terraform-demo-202603
+cd /Users/konishitatsuhiro/Desktop/git/azure-terraform-demo-202603-v2
 
 # Resource Groupの作成
 az group create --name rg-tatsukoni-dev --location japaneast
@@ -126,7 +123,7 @@ terraform apply -var env=dev
 ### 初期構築（prd環境）
 
 ```bash
-cd /Users/konishitatsuhiro/Desktop/git/azure-terraform-demo-202603
+cd /Users/konishitatsuhiro/Desktop/git/azure-terraform-demo-202603-v2
 
 # Resource Groupの作成
 az group create --name rg-tatsukoni-prd --location japaneast

@@ -1,5 +1,5 @@
-resource "azurerm_cosmosdb_account" "cosmosdb_account_feat" {
-  name                   = "${local.service_name}-${local.api_service_name}-${var.env}"
+resource "azurerm_cosmosdb_account" "cosmosdb_account_test_v2" {
+  name                   = "${local.service_name}-${local.api_service_name}-${var.env}-v2"
   location               = var.resource_group.location
   resource_group_name    = var.resource_group.name
   default_identity_type  = local.default_identity_type

@@ -382,6 +382,192 @@ terraform plan -var env=prd
 
 ---
 
+## resourceブロック vs moduleブロック: count追加時の自動検出の違い
+
+### 重要な発見
+
+Terraformでは、**resourceブロック**と**moduleブロック**で`count`を追加した際の自動移動検出の動作が**異なります**。
+
+### resourceブロックの場合（自動検出あり）
+
+#### 公式ドキュメントの記載
+
+> "When you add `count` to an existing resource that didn't previously have the argument, Terraform **automatically proposes** moving the original object to instance `0` unless you write a `moved` block that explicitly mentions that resource."
+>
+> — [Refactoring: moved blocks](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring)
+
+#### 動作
+
+```hcl
+# 既存のコード
+resource "azurerm_cosmosdb_account" "example" {
+  name = "example"
+  # ...
+}
+
+# count を追加
+resource "azurerm_cosmosdb_account" "example" {
+  count = var.env == "prd" ? 1 : 0  # ← 追加
+  name  = "example"
+  # ...
+}
+```
+
+**結果:**
+- Terraformが**自動的に**移動を検出
+- `moved`ブロックなしでも以下のように表示される:
+
+```
+Terraform will perform the following actions:
+
+  # azurerm_cosmosdb_account.example has moved to azurerm_cosmosdb_account.example[0]
+    resource "azurerm_cosmosdb_account" "example" {
+        name = "example"
+        # (attributes unchanged)
+    }
+
+Plan: 0 to add, 0 to change, 0 to destroy.
+```
+
+**重要:** リソースの削除・再作成は発生しない（自動検出されるため）
+
+### moduleブロックの場合（自動検出なし）
+
+#### 公式ドキュメントの記載
+
+> "To preserve an object that was previously associated with `module.a` alone, **you can add a `moved` block** to specify which instance key that object will take in the new configuration."
+>
+> — [Refactoring: moved blocks](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring)
+
+#### 動作
+
+```hcl
+# 既存のコード
+module "test" {
+  source         = "./test"
+  env            = var.env
+  resource_group = data.azurerm_resource_group.rg_tatsukoni
+}
+
+# count を追加
+module "test" {
+  count          = var.env == "prd" ? 1 : 0  # ← 追加
+  source         = "./test"
+  env            = var.env
+  resource_group = data.azurerm_resource_group.rg_tatsukoni
+}
+```
+
+**結果（`moved`ブロックなしの場合）:**
+- Terraformは自動検出**しない**
+- 削除と作成として扱われる:
+
+```
+Plan: 4 to add, 0 to change, 4 to destroy.
+
+# 削除される
+- module.test.azurerm_cosmosdb_account.cosmosdb_account_test
+- module.test.azurerm_cosmosdb_sql_database.testdatabase
+- module.test.azurerm_cosmosdb_sql_container.testcontainerapp
+- module.test.azurerm_cosmosdb_sql_container.testcontainerfront
+
+# 作成される
++ module.test[0].azurerm_cosmosdb_account.cosmosdb_account_test
++ module.test[0].azurerm_cosmosdb_sql_database.testdatabase
++ module.test[0].azurerm_cosmosdb_sql_container.testcontainerapp
++ module.test[0].azurerm_cosmosdb_sql_container.testcontainerfront
+```
+
+**重要:** リソースの削除・再作成が計画される（自動検出されないため）
+
+#### 対処法: `moved`ブロックが必須
+
+```hcl
+# cosmosdb/moved.tf
+moved {
+  from = module.test
+  to   = module.test[0]
+}
+```
+
+このブロックを追加することで、resourceブロックと同様に移動として扱われます。
+
+### 比較表
+
+| 項目 | resourceブロック | moduleブロック |
+|------|-----------------|---------------|
+| **自動検出** | ✅ あり | ❌ なし |
+| **`moved`ブロック** | 推奨（なくても動作） | **必須** |
+| **`moved`なしの動作** | 移動として扱われる | 削除・作成として扱われる |
+| **リソース影響（`moved`なし）** | なし | **削除・再作成が発生** |
+| **公式ドキュメント記載** | "automatically proposes" | "you can add a moved block" |
+
+### なぜ違いがあるのか
+
+公式ドキュメントに明確な理由は記載されていませんが、以下のような理由が考えられます：
+
+1. **複雑性の違い**
+   - resourceは単一のリソース定義
+   - moduleは複数のリソースを含む複雑な構造
+   - moduleの自動検出は予期しない影響が大きい可能性
+
+2. **明示性の重視**
+   - moduleの変更は影響範囲が広い
+   - 自動検出よりも明示的な宣言を求めることで、意図しない変更を防ぐ
+
+3. **段階的な機能追加**
+   - resourceの自動検出は比較的新しい機能
+   - moduleへの拡張は将来的な改善の可能性
+
+### ベストプラクティス
+
+#### resourceブロックの場合
+
+自動検出されますが、公式ドキュメントでは明示的な`moved`ブロックの記述を推奨しています：
+
+> "However, we recommend writing out the corresponding `moved` block explicitly to make the change clearer to future readers of the module."
+
+**理由:**
+- コードの変更履歴が明確になる
+- 将来のメンテナンス担当者が理解しやすい
+- チーム開発での可読性向上
+
+#### moduleブロックの場合
+
+**必ず**`moved`ブロックを記述してください。これは推奨ではなく必須です。
+
+### 実際の挙動確認
+
+#### resourceブロックでの確認（自動検出あり）
+
+```bash
+# countを追加後、movedブロックなしでplan実行
+terraform plan -var env=prd
+
+# 結果: 自動的に移動として検出される
+# has moved to resource[0]
+# Plan: 0 to add, 0 to change, 0 to destroy.
+```
+
+#### moduleブロックでの確認（自動検出なし）
+
+```bash
+# countを追加後、movedブロックなしでplan実行
+terraform plan -var env=prd
+
+# 結果: 削除・作成として扱われる
+# Plan: N to add, 0 to change, N to destroy.
+
+# movedブロック追加後
+terraform plan -var env=prd
+
+# 結果: 移動として扱われる
+# has moved to module[0]
+# Plan: 0 to add, 0 to change, 0 to destroy.
+```
+
+---
+
 ## まとめ
 
 ### 重要なポイント

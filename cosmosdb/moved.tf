@@ -4,8 +4,3 @@
 #   from = module.test
 #   to   = module.test[0]
 # }
-
-# moved {
-#   from = module.feat
-#   to   = module.feat[0]
-# }

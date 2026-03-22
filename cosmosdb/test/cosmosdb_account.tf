@@ -1,4 +1,5 @@
 resource "azurerm_cosmosdb_account" "cosmosdb_account_test" {
+  # count                  = var.env == "prd" ? 1 : 0  # prd環境のみ作成
   name                   = "${local.service_name}-${local.api_service_name}-${var.env}"
   location               = var.resource_group.location
   resource_group_name    = var.resource_group.name
