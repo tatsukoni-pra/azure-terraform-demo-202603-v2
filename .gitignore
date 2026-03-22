@@ -1,0 +1,4 @@
+.claude
+.terraform/
+.terraform.lock.hcl
+prompt.md
